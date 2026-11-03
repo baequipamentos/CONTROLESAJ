@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalize } from '../server.mjs';
+process.env.NODE_ENV = 'test';
+const { normalize } = await import('../server.mjs');
 
 const base = () => ({
   customer: 'Cliente',
