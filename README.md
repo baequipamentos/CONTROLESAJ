@@ -96,8 +96,7 @@ e pelo backend. Sem data válida, a OS não é salva. A data informada é armaze
 `saj_orders.sale_date` (tipo `date`) e passa a determinar a data na listagem, na
 filtragem por período e na ordenação das OS.
 
-A coluna `created_at` permanece com a data/hora técnica do servidor. As **duas OS
-criadas antes desta mudança** receberam `sale_date` a partir de `created_at`,
+A coluna `created_at` permanece com a data/hora técnica do servidor. As **OS já cadastradas antes desta mudança** receberam `sale_date` a partir de `created_at`,
 no fuso America/Bahia, porque não havia data informada no cadastro.
 
 As **841 OS históricas** mantêm a data original em `saj_legacy_orders.sold_at`.
