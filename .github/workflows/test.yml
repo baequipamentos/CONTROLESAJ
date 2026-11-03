@@ -15,6 +15,7 @@ jobs:
       - name: Verificar sintaxe
         run: |
           node --check server.mjs
+          node --check netlify/functions/api.mjs
           node --check public/app.js
           node --check test/validation.test.mjs
       - name: Rodar testes
