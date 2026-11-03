@@ -204,13 +204,13 @@ function renderForm() {
     label('Cliente *', input(d.customer,'data-simple="customer" required maxlength="160"' + off)) +
     label('Telefone', input(d.phone,'data-simple="phone" placeholder="(75) 99999-9999"' + off)) +
     label('Placa do veículo', input(d.plate,'data-simple="plate" maxlength="15"' + off)) +
-    label('Vendedor *', d.legacy ? input('Não informado (histórico)','disabled') : select('seller',SELLERS,d.seller,'data-simple="seller"' + off)) +
+    label('Vendedor *', d.legacy ? input(d.seller || 'Não informado (histórico)','disabled') : select('seller',SELLERS,d.seller,'data-simple="seller"' + off)) +
     label('Mecânico responsável', select('mechanic', MECHANICS.map(n => ({value:n,label:n || 'Não informado'})), d.mechanic, 'data-simple="mechanic"' + off)) +
     '<div><label>Loja</label>' + input('Santo Antônio de Jesus (SAJ)','disabled') + '</div>' +
     label('Observações', '<textarea data-simple="notes" maxlength="2000"' + off + '>' + h(d.notes) + '</textarea>', 'wide') +
     '</div>';
   $('screen').innerHTML = '<div class="row-between"><div><span class="eyebrow">CONTROLE DIÁRIO · SAJ</span><h1>' + h(title) + '</h1><p>' +
-    (d.legacy ? 'Registro histórico importado · somente consulta. Vendedor e pagamentos não informados.' : readonly ? 'Ordem concluída · somente consulta.' : 'Adicione quantos pneus, peças, serviços e pagamentos forem necessários.') +
+    (d.legacy ? 'Registro histórico importado · vendedor atribuído posteriormente · forma de pagamento não informada.' : readonly ? 'Ordem concluída · somente consulta.' : 'Adicione quantos pneus, peças, serviços e pagamentos forem necessários.') +
     '</p></div><button class="btn" data-action="back" type="button">← Voltar</button></div>' +
     (d.id ? '<div class="subtle spacing-top">Criada em ' + h(dateBR(d.created_at)) + ' · ' + (readonly ? 'Concluída' : 'Em aberto') + ' · Vendedor: ' + h(d.seller || 'Não informado') + '</div>' : '<div class="subtle spacing-top">O número da OS será gerado automaticamente ao salvar.</div>') +
     '<form id="os-form"><section class="card form-panel"><h3>Dados da ordem</h3><div class="spacing-top">' + fields + '</div>' +

@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS public.saj_destinations (
 -- OS históricas isoladas das novas. Não alteram sequência, vendedores ou pagamentos.
 CREATE TABLE IF NOT EXISTS public.saj_legacy_orders (
  legacy_number integer PRIMARY KEY CHECK (legacy_number > 0),
+ seller text NOT NULL DEFAULT 'Antonio' CHECK (seller IN ('Antonio','Jean')),
  customer text NOT NULL CHECK (length(trim(customer)) > 0),
  plate text NOT NULL DEFAULT '',
  sold_at timestamptz NOT NULL,
@@ -41,3 +42,6 @@ CREATE TABLE IF NOT EXISTS public.saj_legacy_orders (
  notes text NOT NULL DEFAULT '',
  imported_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Migração idempotente para instalações do histórico anteriores à atribuição do vendedor.
+ALTER TABLE public.saj_legacy_orders ADD COLUMN IF NOT EXISTS seller text NOT NULL DEFAULT 'Antonio' CHECK (seller IN ('Antonio','Jean'));
