@@ -1,51 +1,67 @@
 # Bahia Pneus — Controle de OS (SAJ)
 
-Reimplementação independente do sistema de ordens de serviço da **loja Santo Antônio de Jesus**.
+Aplicação independente para a loja **Santo Antônio de Jesus**, com hospedagem preparada para **Netlify** e banco de dados gratuito **Neon PostgreSQL**.
 
-## Regras de negócio
+## Regras da operação
 
-- **Uma loja:** SAJ. Não existe seletor de loja.
-- **Somente dois vendedores:** Antonio e Jean.
-- **Mecânicos separados:** Sérgio, Marcelo e Zé, sem participação na classificação "vendas por vendedor".
-- OS com numeração automática sequencial `SAJ-000001` (derivada do ID no PostgreSQL).
-- Vários itens por OS: Pneus, Peças e Serviços, com quantidade, valor unitário e subtotal.
-- Pagamentos combinados: Pix, Crédito, Débito, Dinheiro, Transferência, Boleto, com parcelas, situação e máquina/conta.
-- OS aberta pode ser editada; OS concluída é bloqueada contra edição.
-- Resumo por categoria, forma de pagamento, vendedor e mecânico, sem misturar funções.
-- Valor e saldo calculados em **centavos inteiros** para evitar erro de arredondamento.
-- Salvamento compartilhado no **PostgreSQL/Supabase** via backend. Não usa localStorage como banco de dados.
+- Uma única loja: SAJ, sem opção de escolher outras lojas.
+- Apenas dois vendedores: **Antonio** e **Jean**.
+- Mecânicos: Sérgio, Marcelo e Zé, em cadastro e apuração separados de vendedores.
+- OS com numeração automática SAJ-000001, vários itens e pagamentos combinados.
+- Edição de ordens abertas, conclusão com bloqueio para edição e resumo financeiro.
 
-## Instalação (Node 22+)
+## Tecnologias
 
-1. Crie ou selecione um **projeto Supabase isolado** para este sistema (não executar as migrações no ERP sem revisão).
-2. Cole o arquivo `sql/schema.sql` no SQL Editor do projeto e execute-o.
-3. Configure, **somente no servidor**, as variáveis de `.env.example`: `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` (chave JWT service_role tradicional).
-4. Na sua máquina, crie um arquivo `.env` com as variáveis necessárias e execute `npm test`, depois `node --env-file=.env server.mjs`. Acesse `http://localhost:3000`.
-5. **Netlify**: conecte este repositório no painel da Netlify, sem configurar comando de build; `netlify.toml` publica a pasta `public/` e instala a API em `netlify/functions/api.mjs`. No painel da Netlify, configure `SUPABASE_URL` e `SUPABASE_SECRET_KEY` como variáveis de ambiente de runtime para Functions. Não use variáveis no navegador nem escreva segredos no GitHub. O arquivo `render.yaml` continua apenas como opção alternativa.
+- Frontend: HTML, CSS e JavaScript em public/.
+- API: netlify/functions/api.mjs, hospedada em Netlify Functions.
+- Banco: Neon Free, PostgreSQL independente do ERP.
+- Driver: @neondatabase/serverless, versão fixa 1.2.0.
+- Variável de ambiente: DATABASE_URL, exclusiva do servidor, nunca do navegador.
 
-**Importante:** o site original publicado no ChatGPT Sites permanece independente. Este repositório não contém cópia dos arquivos internos nem do banco do site original. Esta é uma reimplementação.
+## PASSO 2 — Criar o banco de dados Neon
 
-## Segurança (leitura obrigatória)
+1. Acesse https://console.neon.tech/ e crie uma conta ou entre.
+2. Clique em **New project** e escolha o plano **Free**.
+3. Informe o nome **CONTROLESAJ**; selecione uma região próxima ao Brasil, se disponível.
+4. Conclua a criação; abra o **SQL Editor** do novo projeto.
+5. Copie o arquivo [sql/schema.sql](sql/schema.sql) e execute no SQL Editor. Ele cria apenas saj_orders e saj_destinations.
+6. Em **Connect** ou **Connection details**, localize a connection string PostgreSQL. Se disponível, use a opção pooled para as funções serverless.
+7. NÃO envie a connection string com senha em conversas, prints, issues ou commits públicos.
 
-O usuário pediu uso **sem login**. Isso implica que qualquer pessoa com acesso ao endereço público pode consultar, criar e alterar ordens de serviço, contendo informações comerciais e de clientes. **Não publique com dados reais em um domínio aberto sem implementar um controle de acesso** (por exemplo, gateway privado, VPN ou autenticação). O limitador simples de requisições e a checagem de Origin no servidor não substituem autenticação.
+## PASSO 3 — Publicar na Netlify
 
-A chave `SUPABASE_SECRET_KEY` (ou a legada `service_role`) acessa o banco apenas pelo servidor. **Ela não fica restrita às duas tabelas** se o projeto Supabase for compartilhado com o ERP; por isso recomendamos um **projeto Supabase isolado** para SAJ. Nunca escreva essa chave em HTML, JS do navegador ou no GitHub. As tabelas possuem RLS habilitada e não permitem acesso direto a `anon` / `authenticated`.
+1. Acesse https://app.netlify.com e selecione Add new project / Import an existing project.
+2. Conecte o GitHub e selecione baequipamentos/CONTROLESAJ, branch main.
+3. Use a configuração existente em netlify.toml (publish: public, Functions: netlify/functions).
+4. Em Site/Project configuration > Environment variables, crie DATABASE_URL com a connection string do Neon; mantenha-a disponível para Functions.
+5. Faça deploy (ou redeploy, caso tenha configurado as variáveis após o primeiro deploy).
+6. Valide a criação de OS fictícia, vários itens, pagamento dividido, edição e conclusão. O site original do ChatGPT Sites não é alterado.
 
-O endpoint `/health` informa apenas se as variáveis de ambiente estão configuradas, não valida credenciais.
+## Executar em ambiente local
 
-## URLs
-
-- `/` — operação, OS, resumo financeiro e cadastros
-- `GET, POST /api/orders` — consulta e criação de OS
-- `PATCH /api/orders/:id` — edição/conclusão com controle de versão
-- `GET, POST, DELETE /api/destinations` — máquinas e contas
-
-## Testes
+Com Node.js 22 ou superior:
 
 ```sh
+npm install
 npm test
+node --env-file=.env server.mjs
 ```
 
-## Prioridade
+Para executar localmente, crie um arquivo .env (ignorado pelo Git) com DATABASE_URL do Neon.
 
-Não publicar no endereço do sistema anterior até validar fluxo completo e persistência.
+## Segurança
+
+**Atenção: este aplicativo não possui login.** O endereço público, por si só, não protege as OS. Quem tiver acesso ao site poderá consultar dados de clientes e criar/alterar registros. Não publique dados reais sem aplicar controle de acesso (por exemplo, autenticação ou acesso restrito via gateway). A variável DATABASE_URL deve existir somente no servidor da Netlify.
+
+O banco Neon deste projeto será separado do ERP: a credencial do projeto CONTROLESAJ não permite acessar os bancos de outros projetos Neon ou Supabase.
+
+## Principais arquivos
+
+- sql/schema.sql — estrutura de banco Neon.
+- neon-db.mjs — consultas parametrizadas ao PostgreSQL.
+- netlify/functions/api.mjs — API em Netlify Functions.
+- server.mjs — execução local e validação das regras.
+- public/ — telas do controle.
+- .github/workflows/test.yml — testes e checagens automáticas.
+
+**Estado atual:** código convertido e enviado ao GitHub. O projeto Neon e a implantação Netlify ainda não foram configurados.
