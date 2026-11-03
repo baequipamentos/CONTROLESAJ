@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { storage } from './neon-db.mjs';
 
 const home = fileURLToPath(new URL('.', import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
@@ -80,29 +81,6 @@ async function jsonBody(req) {
   try { return JSON.parse(body); }
   catch { throw problem(400, 'JSON inválido.'); }
 }
-async function db(method, table, query = '', data = undefined, extra = {}) {
-  const base = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !key) throw problem(503, 'Banco ainda não configurado no servidor.');
-  const url = base.replace(/\/$/, '') + '/rest/v1/' + table + query;
-  const response = await fetch(url, {
-    method,
-    headers: {
-      apikey: key, ...(key.startsWith('sb_secret_') ? {} : { Authorization: 'Bearer ' + key }), 'Content-Type': 'application/json',
-      Accept: 'application/json', Prefer: 'return=representation', ...extra
-    },
-    body: data === undefined ? undefined : JSON.stringify(data),
-    signal: AbortSignal.timeout(12000)
-  });
-  const raw = await response.text();
-  if (!response.ok) {
-    console.error('DB', method, table, response.status, raw.slice(0, 400));
-    throw problem(502, 'Falha no banco de dados. Verifique configuração e migração SQL.');
-  }
-  if (!raw) return [];
-  try { return JSON.parse(raw); }
-  catch { throw problem(502, 'Resposta inválida do banco.'); }
-}
 function requireWritable(req) {
   const origin = req.headers.origin;
   if (origin) {
@@ -121,17 +99,17 @@ function requireWritable(req) {
 async function serve(req, res) {
   const url = new URL(req.url || '/', 'http://localhost');
   const pathname = url.pathname;
-  if (pathname === '/health') return reply(res, 200, { ok: true, database_configured: Boolean(process.env.SUPABASE_URL && (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)) });
+  if (pathname === '/health') return reply(res, 200, { ok: true, database_configured: Boolean(process.env.DATABASE_URL) });
   if (pathname.startsWith('/api/')) {
     if (!['GET', 'POST', 'PATCH', 'DELETE'].includes(req.method)) throw problem(405, 'Método não permitido.');
     if (req.method !== 'GET') requireWritable(req);
     if (pathname === '/api/orders' && req.method === 'GET') {
-      const list = await db('GET', 'saj_orders', '?select=*&order=id.desc&limit=3000');
+      const list = await storage.listOrders();
       return reply(res, 200, { orders: list });
     }
     if (pathname === '/api/orders' && req.method === 'POST') {
       const order = normalize(await jsonBody(req));
-      const created = await db('POST', 'saj_orders', '?select=*', order);
+      const created = await storage.createOrder(order);
       return reply(res, 201, { order: created[0] });
     }
     const match = pathname.match(/^\/api\/orders\/([1-9]\d*)$/);
@@ -139,7 +117,7 @@ async function serve(req, res) {
       const input = await jsonBody(req);
       const id = Number(match[1]);
       if (!Number.isSafeInteger(id) || !Number.isSafeInteger(input?.version) || input.version < 1) throw problem(400, 'OS ou versão inválida.');
-      const saved = await db('GET', 'saj_orders', '?id=eq.' + id + '&select=id,status,version');
+      const saved = await storage.findOrder(id);
       if (!saved.length) throw problem(404, 'OS não encontrada.');
       if (saved[0].status !== 'open') throw problem(409, 'Uma OS concluída não pode ser alterada.');
       if (saved[0].version !== input.version) throw problem(409, 'A OS foi modificada por outra pessoa. Atualize a lista.');
@@ -150,12 +128,12 @@ async function serve(req, res) {
         updated_at: new Date().toISOString(),
         completed_at: status === 'completed' ? new Date().toISOString() : null
       };
-      const result = await db('PATCH', 'saj_orders', '?id=eq.' + id + '&version=eq.' + input.version + '&status=eq.open&select=*', patch);
+      const result = await storage.updateOrder(id, input.version, patch);
       if (!result.length) throw problem(409, 'Conflito: a OS foi alterada. Atualize.');
       return reply(res, 200, { order: result[0] });
     }
     if (pathname === '/api/destinations' && req.method === 'GET') {
-      const list = await db('GET', 'saj_destinations', '?select=*&order=name.asc');
+      const list = await storage.listDestinations();
       return reply(res, 200, { destinations: list });
     }
     if (pathname === '/api/destinations' && req.method === 'POST') {
@@ -164,13 +142,13 @@ async function serve(req, res) {
       const type = text(input?.type, 10);
       const cnpj = text(input?.cnpj, 25).replace(/\D/g, '');
       if (!name || !TYPES.includes(type) || (cnpj.length !== 0 && cnpj.length !== 14)) throw problem(400, 'Nome, tipo ou CNPJ inválidos.');
-      const created = await db('POST', 'saj_destinations', '?select=*', { name, type, cnpj });
+      const created = await storage.createDestination({ name, type, cnpj });
       return reply(res, 201, { destination: created[0] });
     }
     if (pathname === '/api/destinations' && req.method === 'DELETE') {
       const id = Number(url.searchParams.get('id'));
       if (!Number.isSafeInteger(id) || id < 1) throw problem(400, 'Cadastro inválido.');
-      await db('DELETE', 'saj_destinations', '?id=eq.' + id);
+      await storage.deleteDestination(id);
       return reply(res, 200, { ok: true });
     }
     throw problem(404, 'Rota inexistente.');
@@ -197,4 +175,4 @@ const server = createServer((req, res) => {
 if (process.env.NODE_ENV !== 'test' && process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   server.listen(PORT, '0.0.0.0', () => console.log('Controle SAJ na porta ' + PORT));
 }
-export { server, normalize, db, problem, text };
+export { server, normalize, problem, text };

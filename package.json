@@ -4,6 +4,15 @@
   "private": true,
   "type": "module",
   "description": "Controle de ordens de serviço da Bahia Pneus - SAJ",
-  "engines": {"node": ">=22"},
-  "scripts": {"start": "node server.mjs", "dev": "node --watch server.mjs", "test": "node --test"}
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "1.2.0"
+  }
 }

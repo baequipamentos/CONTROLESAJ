@@ -1,4 +1,5 @@
-import { normalize, db, problem, text } from '../../server.mjs';
+import { normalize, problem, text } from '../../server.mjs';
+import { storage } from '../../neon-db.mjs';
 
 const METHODS = new Set(['GET', 'POST', 'PATCH', 'DELETE']);
 const TYPES = new Set(['pos', 'pix', 'bank', 'other']);
@@ -35,12 +36,12 @@ export default async function handler(request) {
 
     if (route === '/api/orders') {
       if (request.method === 'GET') {
-        const orders = await db('GET', 'saj_orders', '?select=*&order=id.desc&limit=3000');
+        const orders = await storage.listOrders();
         return send({ orders });
       }
       if (request.method === 'POST') {
         const payload = normalize(await data(request));
-        const rows = await db('POST', 'saj_orders', '?select=*', payload);
+        const rows = await storage.createOrder(payload);
         return send({ order: rows[0] }, 201);
       }
     }
@@ -52,7 +53,7 @@ export default async function handler(request) {
       if (!Number.isSafeInteger(id) || !Number.isSafeInteger(input?.version) || input.version < 1) {
         throw problem(400, 'OS ou versão inválida.');
       }
-      const saved = await db('GET', 'saj_orders', '?id=eq.' + id + '&select=id,status,version');
+      const saved = await storage.findOrder(id);
       if (!saved.length) throw problem(404, 'OS não encontrada.');
       if (saved[0].status !== 'open') throw problem(409, 'Uma OS concluída não pode ser alterada.');
       if (saved[0].version !== input.version) throw problem(409, 'OS alterada por outra pessoa. Atualize.');
@@ -65,18 +66,14 @@ export default async function handler(request) {
         updated_at: new Date().toISOString(),
         completed_at: status === 'completed' ? new Date().toISOString() : null
       };
-      const rows = await db(
-        'PATCH', 'saj_orders',
-        '?id=eq.' + id + '&version=eq.' + input.version + '&status=eq.open&select=*',
-        patch
-      );
+      const rows = await storage.updateOrder(id, input.version, patch);
       if (!rows.length) throw problem(409, 'OS alterada simultaneamente. Atualize.');
       return send({ order: rows[0] });
     }
 
     if (route === '/api/destinations') {
       if (request.method === 'GET') {
-        const destinations = await db('GET', 'saj_destinations', '?select=*&order=name.asc');
+        const destinations = await storage.listDestinations();
         return send({ destinations });
       }
       if (request.method === 'POST') {
@@ -87,13 +84,13 @@ export default async function handler(request) {
         if (!name || !TYPES.has(type) || (cnpj.length !== 0 && cnpj.length !== 14)) {
           throw problem(400, 'Nome, tipo ou CNPJ inválidos.');
         }
-        const rows = await db('POST', 'saj_destinations', '?select=*', { name, type, cnpj });
+        const rows = await storage.createDestination({ name, type, cnpj });
         return send({ destination: rows[0] }, 201);
       }
       if (request.method === 'DELETE') {
         const id = Number(url.searchParams.get('id'));
         if (!Number.isSafeInteger(id) || id < 1) throw problem(400, 'Cadastro inválido.');
-        await db('DELETE', 'saj_destinations', '?id=eq.' + id);
+        await storage.deleteDestination(id);
         return send({ ok: true });
       }
     }
