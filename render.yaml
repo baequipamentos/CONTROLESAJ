@@ -1,15 +1,14 @@
+# Hospedagem alternativa; Netlify e a configuracao recomendada.
 services:
   - type: web
     name: controle-saj
     runtime: node
     plan: free
-    buildCommand: echo "Sem dependencias externas"
-    startCommand: node server.mjs
+    buildCommand: npm install
+    startCommand: npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
+      - key: DATABASE_URL
         sync: false
