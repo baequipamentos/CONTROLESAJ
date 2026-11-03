@@ -81,6 +81,7 @@ async function jsonBody(req) {
   try { return JSON.parse(body); }
   catch { throw problem(400, 'JSON inválido.'); }
 }
+function historicRow(o) { return {id:'legacy:'+o.legacy_number,legacy:true,legacy_number:o.legacy_number,customer:o.customer,phone:'',plate:o.plate||'',seller:'',mechanic:'',notes:o.notes||'',items:o.items||[],payments:[],total_cents:Number(o.total_cents),status:'completed',version:1,created_at:o.sold_at,completed_at:o.sold_at}; }
 function requireWritable(req) {
   const origin = req.headers.origin;
   if (origin) {
@@ -104,8 +105,8 @@ async function serve(req, res) {
     if (!['GET', 'POST', 'PATCH', 'DELETE'].includes(req.method)) throw problem(405, 'Método não permitido.');
     if (req.method !== 'GET') requireWritable(req);
     if (pathname === '/api/orders' && req.method === 'GET') {
-      const list = await storage.listOrders();
-      return reply(res, 200, { orders: list });
+      const [list,legacy] = await Promise.all([storage.listOrders(),storage.listLegacyOrders()]);
+      return reply(res,200,{orders:[...list,...legacy.map(historicRow)].sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at))});
     }
     if (pathname === '/api/orders' && req.method === 'POST') {
       const order = normalize(await jsonBody(req));

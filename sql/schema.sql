@@ -28,3 +28,16 @@ CREATE TABLE IF NOT EXISTS public.saj_destinations (
   cnpj text NOT NULL DEFAULT '',
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- OS históricas isoladas das novas. Não alteram sequência, vendedores ou pagamentos.
+CREATE TABLE IF NOT EXISTS public.saj_legacy_orders (
+ legacy_number integer PRIMARY KEY CHECK (legacy_number > 0),
+ customer text NOT NULL CHECK (length(trim(customer)) > 0),
+ plate text NOT NULL DEFAULT '',
+ sold_at timestamptz NOT NULL,
+ original_period text NOT NULL DEFAULT '',
+ items jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(items) = 'array'),
+ total_cents bigint NOT NULL DEFAULT 0 CHECK (total_cents >= 0),
+ notes text NOT NULL DEFAULT '',
+ imported_at timestamptz NOT NULL DEFAULT now()
+);

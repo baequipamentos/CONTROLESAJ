@@ -4,6 +4,7 @@ import { storage } from '../../neon-db.mjs';
 const METHODS = new Set(['GET', 'POST', 'PATCH', 'DELETE']);
 const TYPES = new Set(['pos', 'pix', 'bank', 'other']);
 
+function historicRow(o) { return {id:'legacy:'+o.legacy_number,legacy:true,legacy_number:o.legacy_number,customer:o.customer,phone:'',plate:o.plate||'',seller:'',mechanic:'',notes:o.notes||'',items:o.items||[],payments:[],total_cents:Number(o.total_cents),status:'completed',version:1,created_at:o.sold_at,completed_at:o.sold_at}; }
 function send(body, status = 200) {
   return Response.json(body, {
     status,
@@ -36,8 +37,8 @@ export default async function handler(request) {
 
     if (route === '/api/orders') {
       if (request.method === 'GET') {
-        const orders = await storage.listOrders();
-        return send({ orders });
+        const [orders,legacy] = await Promise.all([storage.listOrders(),storage.listLegacyOrders()]);
+        return send({orders:[...orders,...legacy.map(historicRow)].sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at))});
       }
       if (request.method === 'POST') {
         const payload = normalize(await data(request));

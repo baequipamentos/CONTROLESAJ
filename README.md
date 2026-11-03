@@ -65,3 +65,7 @@ O banco Neon deste projeto será separado do ERP: a credencial do projeto CONTRO
 - .github/workflows/test.yml — testes e checagens automáticas.
 
 **Estado atual:** código convertido e enviado ao GitHub. O projeto Neon e a implantação Netlify ainda não foram configurados.
+
+## Importação das OS históricas
+
+Importados diretamente no Neon: **841 OS, 1.331 itens, R$ 445.097,50**. A OS 7 sem itens e valor zero foi preservada sem somar vendas. O identificador antigo é `ANTIGA-000001` etc., sem ocupar a numeração das novas OS `SAJ-000001`. OS antigas são somente leitura. Vendedor, mecânico e pagamentos históricos não constavam no arquivo: ficam desconhecidos, não compõem vendas por vendedor ou recebimentos, mas integram o total histórico e categorias. Atenção à OS 841 (bieleta R$ 28.904,00) e às datas incomuns; mantidas sem suposição.

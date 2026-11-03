@@ -26,7 +26,7 @@ function cents(raw) {
   const n = Number(value);
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : NaN;
 }
-function osNumber(id) { return 'SAJ-' + String(id).padStart(6, '0'); }
+function osNumber(id) { return String(id).startsWith('legacy:') ? 'ANTIGA-' + String(id).split(':')[1].padStart(6,'0') : 'SAJ-' + String(id).padStart(6,'0'); }
 function dateBR(s) { return s ? new Date(s).toLocaleDateString('pt-BR', { timeZone:'America/Bahia' }) : '—'; }
 function dateISO(s) {
   if (!s) return '';
@@ -85,7 +85,7 @@ function visibleOrders() {
     if (f.from && dateISO(o.created_at) < f.from) return false;
     if (f.to && dateISO(o.created_at) > f.to) return false;
     if (!q) return true;
-    return [osNumber(o.id), o.customer, o.seller, o.mechanic, o.phone, o.plate].join(' ').toLocaleLowerCase('pt-BR').includes(q);
+    return [osNumber(o.id), o.legacy ? 'historica antiga' : '', o.customer, o.seller, o.mechanic, o.phone, o.plate].join(' ').toLocaleLowerCase('pt-BR').includes(q);
   });
 }
 function stats(orders) {
@@ -124,7 +124,7 @@ function renderOrders() {
       '</p><button class="btn primary" type="button" data-action="new">＋ Criar nova OS</button></div>';
   } else {
     table = '<div class="table-wrap"><table><thead><tr><th>OS</th><th>Data</th><th>Cliente</th><th>Vendedor</th><th>Mecânico</th><th>Total</th><th>Recebido</th><th>Situação</th><th></th></tr></thead><tbody>' +
-      orders.map(o => '<tr><td><b>' + h(osNumber(o.id)) + '</b></td><td>' + h(dateBR(o.created_at)) + '</td><td><b>' + h(o.customer) + '</b><div class="muted">' + h(o.plate) + '</div></td><td>' + h(o.seller) + '</td><td>' + h(o.mechanic || '—') + '</td><td class="amount">' + money(o.total_cents) + '</td><td>' + money(payReceived(o)) + '</td><td>' + statusTag(o) + '</td><td><button type="button" class="link-action" data-action="open" data-id="' + h(o.id) + '">' + (o.status === 'open' ? 'Editar' : 'Visualizar') + '</button></td></tr>').join('') +
+      orders.map(o => '<tr><td><b>' + h(osNumber(o.id)) + '</b>' + (o.legacy ? '<div class="tag">Histórica</div>' : '') + '</td><td>' + h(dateBR(o.created_at)) + '</td><td><b>' + h(o.customer) + '</b><div class="muted">' + h(o.plate) + '</div></td><td>' + h(o.seller || 'Não informado') + '</td><td> + h(o.mechanic || '—') + '</td><td class="amount">' + money(o.total_cents) + '</td><td>' + money(payReceived(o)) + '</td><td>' + statusTag(o) + '</td><td><button type="button" class="link-action" data-action="open" data-id="' + h(o.id) + '">' + (o.status === 'open' ? 'Editar' : 'Visualizar') + '</button></td></tr>').join('') +
       '</tbody></table></div>';
   }
   $('screen').innerHTML = panelTitle('CONTROLE DIÁRIO', 'Ordens de serviço', 'Loja Santo Antônio de Jesus · todas as vendas em um só lugar.') +
@@ -204,15 +204,15 @@ function renderForm() {
     label('Cliente *', input(d.customer,'data-simple="customer" required maxlength="160"' + off)) +
     label('Telefone', input(d.phone,'data-simple="phone" placeholder="(75) 99999-9999"' + off)) +
     label('Placa do veículo', input(d.plate,'data-simple="plate" maxlength="15"' + off)) +
-    label('Vendedor *', select('seller',SELLERS,d.seller,'data-simple="seller"' + off)) +
+    label('Vendedor *', d.legacy ? input('Não informado (histórico)','disabled') : select('seller',SELLERS,d.seller,'data-simple="seller"' + off)) +
     label('Mecânico responsável', select('mechanic', MECHANICS.map(n => ({value:n,label:n || 'Não informado'})), d.mechanic, 'data-simple="mechanic"' + off)) +
     '<div><label>Loja</label>' + input('Santo Antônio de Jesus (SAJ)','disabled') + '</div>' +
     label('Observações', '<textarea data-simple="notes" maxlength="2000"' + off + '>' + h(d.notes) + '</textarea>', 'wide') +
     '</div>';
   $('screen').innerHTML = '<div class="row-between"><div><span class="eyebrow">CONTROLE DIÁRIO · SAJ</span><h1>' + h(title) + '</h1><p>' +
-    (readonly ? 'Ordem concluída · somente consulta.' : 'Adicione quantos pneus, peças, serviços e pagamentos forem necessários.') +
+    (d.legacy ? 'Registro histórico importado · somente consulta. Vendedor e pagamentos não informados.' : readonly ? 'Ordem concluída · somente consulta.' : 'Adicione quantos pneus, peças, serviços e pagamentos forem necessários.') +
     '</p></div><button class="btn" data-action="back" type="button">← Voltar</button></div>' +
-    (d.id ? '<div class="subtle spacing-top">Criada em ' + h(dateBR(d.created_at)) + ' · ' + (readonly ? 'Concluída' : 'Em aberto') + ' · Vendedor: ' + h(d.seller) + '</div>' : '<div class="subtle spacing-top">O número da OS será gerado automaticamente ao salvar.</div>') +
+    (d.id ? '<div class="subtle spacing-top">Criada em ' + h(dateBR(d.created_at)) + ' · ' + (readonly ? 'Concluída' : 'Em aberto') + ' · Vendedor: ' + h(d.seller || 'Não informado') + '</div>' : '<div class="subtle spacing-top">O número da OS será gerado automaticamente ao salvar.</div>') +
     '<form id="os-form"><section class="card form-panel"><h3>Dados da ordem</h3><div class="spacing-top">' + fields + '</div>' +
     '<div class="section-title"><h3>Itens da OS</h3>' + (readonly ? '' : '<button class="btn soft" type="button" data-action="add-item">＋ Adicionar item</button>') + '</div>' +
     '<div id="item-list">' + itemRows(d,readonly) + '</div>' +
@@ -321,7 +321,7 @@ document.addEventListener('click', event => {
   if (what === 'back') { state.draft = null; alertMessage(''); render(); }
   if (what === 'apply') render();
   if (what === 'open') {
-    const order = state.orders.find(o => Number(o.id) === Number(action.dataset.id));
+    const order = state.orders.find(o => String(o.id) === String(action.dataset.id));
     if (order) { state.draft = JSON.parse(JSON.stringify(order)); alertMessage(''); render(); }
   }
   if (what === 'add-item' && state.draft) {
