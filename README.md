@@ -8,6 +8,7 @@ Aplicação independente para a loja **Santo Antônio de Jesus**, com hospedagem
 - Apenas dois vendedores: **Antonio** e **Jean**.
 - Mecânicos: Sérgio, Marcelo e Zé, em cadastro e apuração separados de vendedores.
 - OS com numeração automática SAJ-000001, vários itens e pagamentos combinados.
+- **Data do lançamento obrigatória**, informada manualmente pelo usuário, separada da data técnica de criação; pode ser alterada enquanto a OS está aberta.
 - Edição de ordens abertas, conclusão com bloqueio para edição e resumo financeiro.
 
 ## Tecnologias
@@ -86,3 +87,18 @@ Os métodos históricos aparecem na OS e em um resumo **separado**, com a indica
 Não representam comprovante de recebimento, crédito bancário ou liquidação de boleto.
 
 O vendedor das OS históricas permanece Antonio por decisão administrativa anterior.
+
+## Data do lançamento
+
+Em **Nova OS**, o vendedor deve informar a data (no navegador em formato brasileiro DD/MM/AAAA).
+O campo começa **vazio**, não recebe a data atual automaticamente e é validado pelo frontend
+e pelo backend. Sem data válida, a OS não é salva. A data informada é armazenada em
+`saj_orders.sale_date` (tipo `date`) e passa a determinar a data na listagem, na
+filtragem por período e na ordenação das OS.
+
+A coluna `created_at` permanece com a data/hora técnica do servidor. As **duas OS
+criadas antes desta mudança** receberam `sale_date` a partir de `created_at`,
+no fuso America/Bahia, porque não havia data informada no cadastro.
+
+As **841 OS históricas** mantêm a data original em `saj_legacy_orders.sold_at`.
+Não houve alteração das datas históricas nem dos pagamentos.

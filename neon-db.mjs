@@ -27,18 +27,18 @@ export const storage = {
   },
   createOrder(o) {
     return sql().query(
-      'INSERT INTO public.saj_orders (customer,phone,plate,seller,mechanic,notes,items,payments,total_cents) ' +
-      'VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9) RETURNING *',
-      [o.customer,o.phone,o.plate,o.seller,o.mechanic,o.notes,JSON.stringify(o.items),JSON.stringify(o.payments),o.total_cents]
+      'INSERT INTO public.saj_orders (customer,phone,plate,seller,mechanic,notes,items,payments,total_cents,sale_date) ' +
+      'VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10::date) RETURNING *',
+      [o.customer,o.phone,o.plate,o.seller,o.mechanic,o.notes,JSON.stringify(o.items),JSON.stringify(o.payments),o.total_cents,o.sale_date]
     );
   },
   updateOrder(id, expectedVersion, o) {
     return sql().query(
       'UPDATE public.saj_orders SET customer=$1,phone=$2,plate=$3,seller=$4,mechanic=$5,notes=$6,' +
-      'items=$7::jsonb,payments=$8::jsonb,total_cents=$9,status=$10,version=version+1,' +
+      'items=$7::jsonb,payments=$8::jsonb,total_cents=$9,status=$10,sale_date=$13::date,version=version+1,' +
       'updated_at=now(),completed_at=CASE WHEN $10 = \'completed\' THEN now() ELSE NULL END ' +
       'WHERE id=$11 AND version=$12 AND status=\'open\' RETURNING *',
-      [o.customer,o.phone,o.plate,o.seller,o.mechanic,o.notes,JSON.stringify(o.items),JSON.stringify(o.payments),o.total_cents,o.status,id,expectedVersion]
+      [o.customer,o.phone,o.plate,o.seller,o.mechanic,o.notes,JSON.stringify(o.items),JSON.stringify(o.payments),o.total_cents,o.status,id,expectedVersion,o.sale_date]
     );
   },
   listDestinations() {

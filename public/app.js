@@ -27,12 +27,27 @@ function cents(raw) {
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : NaN;
 }
 function osNumber(id) { return String(id).startsWith('legacy:') ? 'ANTIGA-' + String(id).split(':')[1].padStart(6,'0') : 'SAJ-' + String(id).padStart(6,'0'); }
-function dateBR(s) { return s ? new Date(s).toLocaleDateString('pt-BR', { timeZone:'America/Bahia' }) : '—'; }
+function dateBR(s) {
+  if (!s) return '—';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(s))) {
+    const [year, month, day] = String(s).split('-');
+    return day + '/' + month + '/' + year;
+  }
+  return new Date(s).toLocaleDateString('pt-BR', { timeZone:'America/Bahia' });
+}
 function dateISO(s) {
   if (!s) return '';
   const d = new Date(s);
   const local = new Date(d.getTime() - 3 * 60 * 60 * 1000);
   return local.toISOString().slice(0, 10);
+}
+function orderISODate(o) {
+  return o.sale_date ? String(o.sale_date).slice(0, 10) : dateISO(o.created_at);
+}
+function validSaleDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(value + 'T00:00:00Z');
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 function payReceived(order) {
   return (order.payments || []).filter(x => x.status === 'recebido').reduce((s,p) => s + Number(p.amount_cents || 0), 0);
@@ -82,8 +97,8 @@ function visibleOrders() {
   const q = f.q.trim().toLocaleLowerCase('pt-BR');
   return state.orders.filter(o => {
     if (f.status && o.status !== f.status) return false;
-    if (f.from && dateISO(o.created_at) < f.from) return false;
-    if (f.to && dateISO(o.created_at) > f.to) return false;
+    if (f.from && orderISODate(o) < f.from) return false;
+    if (f.to && orderISODate(o) > f.to) return false;
     if (!q) return true;
     return [osNumber(o.id), o.legacy ? 'historica antiga' : '', o.customer, o.seller, o.mechanic, o.phone, o.plate].join(' ').toLocaleLowerCase('pt-BR').includes(q);
   });
@@ -124,7 +139,7 @@ function renderOrders() {
       '</p><button class="btn primary" type="button" data-action="new">＋ Criar nova OS</button></div>';
   } else {
     table = '<div class="table-wrap"><table><thead><tr><th>OS</th><th>Data</th><th>Cliente</th><th>Vendedor</th><th>Mecânico</th><th>Pagamento</th><th>Total</th><th>Recebido</th><th>Situação</th><th></th></tr></thead><tbody>' +
-      orders.map(o => '<tr><td><b>' + h(osNumber(o.id)) + '</b>' + (o.legacy ? '<div class="tag">Histórica</div>' : '') + '</td><td>' + h(dateBR(o.created_at)) + '</td><td><b>' + h(o.customer) + '</b><div class="muted">' + h(o.plate) + '</div></td><td>' + h(o.seller || 'Não informado') + '</td><td>' + h(o.mechanic || '—') + '</td><td>' + (o.legacy ? '<b>' + h(o.payment_method || 'Não informado') + '</b><div class="hint">Informado no histórico</div>' : h((o.payments || []).map(p => p.method).filter(Boolean).join(' + ') || '—')) + '</td><td class="amount">' + money(o.total_cents) + '</td><td>' + money(payReceived(o)) + '</td><td>' + statusTag(o) + '</td><td><button type="button" class="link-action" data-action="open" data-id="' + h(o.id) + '">' + (o.status === 'open' ? 'Editar' : 'Visualizar') + '</button></td></tr>').join('') +
+      orders.map(o => '<tr><td><b>' + h(osNumber(o.id)) + '</b>' + (o.legacy ? '<div class="tag">Histórica</div>' : '') + '</td><td>' + h(dateBR(orderISODate(o))) + '</td><td><b>' + h(o.customer) + '</b><div class="muted">' + h(o.plate) + '</div></td><td>' + h(o.seller || 'Não informado') + '</td><td>' + h(o.mechanic || '—') + '</td><td>' + (o.legacy ? '<b>' + h(o.payment_method || 'Não informado') + '</b><div class="hint">Informado no histórico</div>' : h((o.payments || []).map(p => p.method).filter(Boolean).join(' + ') || '—')) + '</td><td class="amount">' + money(o.total_cents) + '</td><td>' + money(payReceived(o)) + '</td><td>' + statusTag(o) + '</td><td><button type="button" class="link-action" data-action="open" data-id="' + h(o.id) + '">' + (o.status === 'open' ? 'Editar' : 'Visualizar') + '</button></td></tr>').join('') +
       '</tbody></table></div>';
   }
   $('screen').innerHTML = panelTitle('CONTROLE DIÁRIO', 'Ordens de serviço', 'Loja Santo Antônio de Jesus · todas as vendas em um só lugar.') +
@@ -154,7 +169,7 @@ function renderSummary() {
     '</div><p class="subtle spacing-top">Valores de venda e categorias consideram somente OS concluídas. Recebidos mostra apenas lançamentos confirmados. Os valores históricos por forma de pagamento foram declarados na planilha e não comprovam liquidação ou repasse bancário.</p>';
 }
 function newDraft() {
-  return { customer:'', phone:'', plate:'', seller:'Antonio', mechanic:'', notes:'', status:'open', version:1, items:[{category:'Pneus',description:'',quantity:1,unit_cents:0}], payments:[] };
+  return { customer:'', phone:'', plate:'', sale_date:'', seller:'Antonio', mechanic:'', notes:'', status:'open', version:1, items:[{category:'Pneus',description:'',quantity:1,unit_cents:0}], payments:[] };
 }
 function orderOptions(values, value, emptyLabel) {
   const opts = emptyLabel == null ? values : [{ value:'',label:emptyLabel }, ...values.map(n => ({value:n,label:n}))];
@@ -207,6 +222,7 @@ function renderForm() {
     label('Cliente *', input(d.customer,'data-simple="customer" required maxlength="160"' + off)) +
     label('Telefone', input(d.phone,'data-simple="phone" placeholder="(75) 99999-9999"' + off)) +
     label('Placa do veículo', input(d.plate,'data-simple="plate" maxlength="15"' + off)) +
+    label('Data do lançamento * (DD/MM/AAAA)', input(d.legacy ? orderISODate(d) : (d.sale_date || ''), 'data-simple="sale_date" required' + off, 'date')) +
     label('Vendedor *', d.legacy ? input(d.seller || 'Não informado (histórico)','disabled') : select('seller',SELLERS,d.seller,'data-simple="seller"' + off)) +
     label('Mecânico responsável', select('mechanic', MECHANICS.map(n => ({value:n,label:n || 'Não informado'})), d.mechanic, 'data-simple="mechanic"' + off)) +
     '<div><label>Loja</label>' + input('Santo Antônio de Jesus (SAJ)','disabled') + '</div>' +
@@ -215,7 +231,7 @@ function renderForm() {
   $('screen').innerHTML = '<div class="row-between"><div><span class="eyebrow">CONTROLE DIÁRIO · SAJ</span><h1>' + h(title) + '</h1><p>' +
     (d.legacy ? 'Registro histórico importado · vendedor atribuído posteriormente · pagamento informado na planilha, não conciliado.' : readonly ? 'Ordem concluída · somente consulta.' : 'Adicione quantos pneus, peças, serviços e pagamentos forem necessários.') +
     '</p></div><button class="btn" data-action="back" type="button">← Voltar</button></div>' +
-    (d.id ? '<div class="subtle spacing-top">Criada em ' + h(dateBR(d.created_at)) + ' · ' + (readonly ? 'Concluída' : 'Em aberto') + ' · Vendedor: ' + h(d.seller || 'Não informado') + '</div>' : '<div class="subtle spacing-top">O número da OS será gerado automaticamente ao salvar.</div>') +
+    (d.id ? '<div class="subtle spacing-top">Data do lançamento: ' + h(dateBR(orderISODate(d))) + ' · Registrada no sistema em ' + h(dateBR(d.created_at)) + ' · ' + (readonly ? 'Concluída' : 'Em aberto') + ' · Vendedor: ' + h(d.seller || 'Não informado') + '</div>' : '<div class="subtle spacing-top">O número da OS será gerado automaticamente ao salvar.</div>') +
     '<form id="os-form"><section class="card form-panel"><h3>Dados da ordem</h3><div class="spacing-top">' + fields + '</div>' +
     '<div class="section-title"><h3>Itens da OS</h3>' + (readonly ? '' : '<button class="btn soft" type="button" data-action="add-item">＋ Adicionar item</button>') + '</div>' +
     '<div id="item-list">' + itemRows(d,readonly) + '</div>' +
@@ -278,6 +294,7 @@ function updateTotals() {
 async function saveOrder(finish) {
   const d = state.draft;
   if (!d || state.busy) return;
+  if (!validSaleDate(d.sale_date)) return alertMessage('Informe a data do lançamento (dia, mês e ano) antes de salvar.');
   if (!d.customer.trim()) return alertMessage('Informe o cliente.');
   if (!SELLERS.includes(d.seller)) return alertMessage('Selecione Antonio ou Jean.');
   if (!d.items.length || d.items.some(i => !i.description.trim() || !i.unit_cents || !i.quantity)) return alertMessage('Preencha a descrição, quantidade e valor de todos os itens.');

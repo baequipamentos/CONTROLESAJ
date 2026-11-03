@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS public.saj_orders (
   items jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(items) = 'array'),
   payments jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(payments) = 'array'),
   total_cents bigint NOT NULL DEFAULT 0 CHECK (total_cents >= 0),
+  sale_date date NOT NULL,
   status text NOT NULL DEFAULT 'open' CHECK (status IN ('open','completed')),
   version integer NOT NULL DEFAULT 1 CHECK (version > 0),
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -53,3 +54,11 @@ ALTER TABLE public.saj_legacy_orders ADD COLUMN IF NOT EXISTS seller text NOT NU
 ALTER TABLE public.saj_legacy_orders ADD COLUMN IF NOT EXISTS payment_method text NOT NULL DEFAULT '';
 ALTER TABLE public.saj_legacy_orders ADD COLUMN IF NOT EXISTS payment_raw text NOT NULL DEFAULT '';
 ALTER TABLE public.saj_legacy_orders ADD COLUMN IF NOT EXISTS payment_declared_cents bigint CHECK (payment_declared_cents >= 0);
+
+-- MIGRAÇÃO: em bancos já em uso, executar este bloco para preservar
+-- registros anteriores à exigência de data informada manualmente.
+-- Nas OS anteriores, a data é deduzida da criação do registro, fuso de Salvador.
+ALTER TABLE public.saj_orders ADD COLUMN IF NOT EXISTS sale_date date;
+UPDATE public.saj_orders SET sale_date = (created_at AT TIME ZONE 'America/Bahia')::date WHERE sale_date IS NULL;
+ALTER TABLE public.saj_orders ALTER COLUMN sale_date SET NOT NULL;
+COMMENT ON COLUMN public.saj_orders.sale_date IS 'Data do lançamento da OS preenchida manualmente. Em ordens anteriores à migração, derivada de created_at.';

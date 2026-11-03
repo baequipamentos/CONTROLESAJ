@@ -38,7 +38,7 @@ export default async function handler(request) {
     if (route === '/api/orders') {
       if (request.method === 'GET') {
         const [orders,legacy] = await Promise.all([storage.listOrders(),storage.listLegacyOrders()]);
-        return send({orders:[...orders,...legacy.map(historicRow)].sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at))});
+        return send({orders:[...orders,...legacy.map(historicRow)].sort((a,b)=>Date.parse(b.sale_date || b.created_at)-Date.parse(a.sale_date || a.created_at))});
       }
       if (request.method === 'POST') {
         const payload = normalize(await data(request));

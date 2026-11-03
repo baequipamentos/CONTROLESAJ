@@ -36,8 +36,19 @@ function text(value, size = 160) {
 function integer(value, max = 1e12) {
   return Number.isSafeInteger(value) && value >= 0 && value <= max;
 }
+function validateSaleDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw problem(400, 'Informe a data do lançamento da OS (dia, mês e ano).');
+  }
+  const parsed = new Date(value + 'T00:00:00Z');
+  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+    throw problem(400, 'Data do lançamento inválida. Confira dia, mês e ano.');
+  }
+  return value;
+}
 function normalize(input, existing = false) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw problem(400, 'Dados inválidos.');
+  const sale_date = validateSaleDate(input.sale_date);
   const customer = text(input.customer);
   const seller = text(input.seller, 30);
   const mechanic = text(input.mechanic, 30);
@@ -66,7 +77,7 @@ function normalize(input, existing = false) {
   const committed = payments.filter(p => p.status === 'recebido' || p.status === 'pendente').reduce((sum, p) => sum + p.amount_cents, 0);
   if (committed > total_cents) throw problem(400, 'A soma dos pagamentos recebidos e pendentes não pode exceder o total da OS.');
   const result = {
-    customer, seller, mechanic,
+    customer, seller, mechanic, sale_date,
     phone: text(input.phone, 32), plate: text(input.plate, 15).toUpperCase(),
     notes: text(input.notes, 2000), items, payments, total_cents
   };
@@ -106,7 +117,7 @@ async function serve(req, res) {
     if (req.method !== 'GET') requireWritable(req);
     if (pathname === '/api/orders' && req.method === 'GET') {
       const [list,legacy] = await Promise.all([storage.listOrders(),storage.listLegacyOrders()]);
-      return reply(res,200,{orders:[...list,...legacy.map(historicRow)].sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at))});
+      return reply(res,200,{orders:[...list,...legacy.map(historicRow)].sort((a,b)=>Date.parse(b.sale_date || b.created_at)-Date.parse(a.sale_date || a.created_at))});
     }
     if (pathname === '/api/orders' && req.method === 'POST') {
       const order = normalize(await jsonBody(req));
