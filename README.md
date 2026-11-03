@@ -20,8 +20,8 @@ Reimplementação independente do sistema de ordens de serviço da **loja Santo 
 1. Crie ou selecione um **projeto Supabase isolado** para este sistema (não executar as migrações no ERP sem revisão).
 2. Cole o arquivo `sql/schema.sql` no SQL Editor do projeto e execute-o.
 3. Configure, **somente no servidor**, as variáveis de `.env.example`: `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` (chave JWT service_role tradicional).
-4. Rode `node --test` e depois `node server.mjs`. Acesse `http://localhost:3000`.
-5. Para publicar, conecte este repositório ao Render com `render.yaml` e cadastre as variáveis secretas no painel. A escolha de plano e possíveis custos deve ser validada antes da publicação.
+4. Na sua máquina, crie um arquivo `.env` com as variáveis necessárias e execute `npm test`, depois `node --env-file=.env server.mjs`. Acesse `http://localhost:3000`.
+5. **Netlify**: conecte este repositório no painel da Netlify, sem configurar comando de build; `netlify.toml` publica a pasta `public/` e instala a API em `netlify/functions/api.mjs`. No painel da Netlify, configure `SUPABASE_URL` e `SUPABASE_SECRET_KEY` como variáveis de ambiente de runtime para Functions. Não use variáveis no navegador nem escreva segredos no GitHub. O arquivo `render.yaml` continua apenas como opção alternativa.
 
 **Importante:** o site original publicado no ChatGPT Sites permanece independente. Este repositório não contém cópia dos arquivos internos nem do banco do site original. Esta é uma reimplementação.
 
@@ -29,7 +29,7 @@ Reimplementação independente do sistema de ordens de serviço da **loja Santo 
 
 O usuário pediu uso **sem login**. Isso implica que qualquer pessoa com acesso ao endereço público pode consultar, criar e alterar ordens de serviço, contendo informações comerciais e de clientes. **Não publique com dados reais em um domínio aberto sem implementar um controle de acesso** (por exemplo, gateway privado, VPN ou autenticação). O limitador simples de requisições e a checagem de Origin no servidor não substituem autenticação.
 
-A chave `service_role` acessa o banco apenas pelo servidor. Nunca escreva essa chave em HTML, JS do navegador ou no GitHub. As tabelas possuem RLS habilitada e não permitem acesso direto a `anon` / `authenticated`.
+A chave `SUPABASE_SECRET_KEY` (ou a legada `service_role`) acessa o banco apenas pelo servidor. **Ela não fica restrita às duas tabelas** se o projeto Supabase for compartilhado com o ERP; por isso recomendamos um **projeto Supabase isolado** para SAJ. Nunca escreva essa chave em HTML, JS do navegador ou no GitHub. As tabelas possuem RLS habilitada e não permitem acesso direto a `anon` / `authenticated`.
 
 O endpoint `/health` informa apenas se as variáveis de ambiente estão configuradas, não valida credenciais.
 

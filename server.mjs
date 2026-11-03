@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const home = fileURLToPath(new URL('.', import.meta.url));
@@ -82,13 +82,13 @@ async function jsonBody(req) {
 }
 async function db(method, table, query = '', data = undefined, extra = {}) {
   const base = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !key) throw problem(503, 'Banco ainda não configurado no servidor.');
   const url = base.replace(/\/$/, '') + '/rest/v1/' + table + query;
   const response = await fetch(url, {
     method,
     headers: {
-      apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json',
+      apikey: key, ...(key.startsWith('sb_secret_') ? {} : { Authorization: 'Bearer ' + key }), 'Content-Type': 'application/json',
       Accept: 'application/json', Prefer: 'return=representation', ...extra
     },
     body: data === undefined ? undefined : JSON.stringify(data),
@@ -121,7 +121,7 @@ function requireWritable(req) {
 async function serve(req, res) {
   const url = new URL(req.url || '/', 'http://localhost');
   const pathname = url.pathname;
-  if (pathname === '/health') return reply(res, 200, { ok: true, database_configured: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) });
+  if (pathname === '/health') return reply(res, 200, { ok: true, database_configured: Boolean(process.env.SUPABASE_URL && (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)) });
   if (pathname.startsWith('/api/')) {
     if (!['GET', 'POST', 'PATCH', 'DELETE'].includes(req.method)) throw problem(405, 'Método não permitido.');
     if (req.method !== 'GET') requireWritable(req);
@@ -194,5 +194,7 @@ const server = createServer((req, res) => {
     if (!res.headersSent) reply(res, code, { error: code === 500 ? 'Erro inesperado no servidor.' : err.message });
   });
 });
-if (process.env.NODE_ENV !== 'test') server.listen(PORT, '0.0.0.0', () => console.log('Controle SAJ na porta ' + PORT));
-export { server, normalize };
+if (process.env.NODE_ENV !== 'test' && process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  server.listen(PORT, '0.0.0.0', () => console.log('Controle SAJ na porta ' + PORT));
+}
+export { server, normalize, db, problem, text };

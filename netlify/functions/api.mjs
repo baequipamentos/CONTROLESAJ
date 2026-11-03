@@ -1,0 +1,108 @@
+import { normalize, db, problem, text } from '../../server.mjs';
+
+const METHODS = new Set(['GET', 'POST', 'PATCH', 'DELETE']);
+const TYPES = new Set(['pos', 'pix', 'bank', 'other']);
+
+function send(body, status = 200) {
+  return Response.json(body, {
+    status,
+    headers: {
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'Referrer-Policy': 'same-origin'
+    }
+  });
+}
+async function data(request) {
+  const len = Number(request.headers.get('content-length') || 0);
+  if (len > 250000) throw problem(413, 'Dados muito grandes.');
+  const raw = await request.text();
+  if (raw.length > 250000) throw problem(413, 'Dados muito grandes.');
+  try { return JSON.parse(raw); } catch { throw problem(400, 'JSON inválido.'); }
+}
+function validateOrigin(request, url) {
+  if (request.method === 'GET') return;
+  const origin = request.headers.get('origin');
+  if (origin && origin !== url.origin) throw problem(403, 'Origem não permitida.');
+}
+
+export default async function handler(request) {
+  try {
+    const url = new URL(request.url);
+    const route = url.pathname;
+    if (!METHODS.has(request.method)) throw problem(405, 'Método não permitido.');
+    validateOrigin(request, url);
+
+    if (route === '/api/orders') {
+      if (request.method === 'GET') {
+        const orders = await db('GET', 'saj_orders', '?select=*&order=id.desc&limit=3000');
+        return send({ orders });
+      }
+      if (request.method === 'POST') {
+        const payload = normalize(await data(request));
+        const rows = await db('POST', 'saj_orders', '?select=*', payload);
+        return send({ order: rows[0] }, 201);
+      }
+    }
+
+    const match = route.match(/^\/api\/orders\/([1-9]\d*)$/);
+    if (match && request.method === 'PATCH') {
+      const id = Number(match[1]);
+      const input = await data(request);
+      if (!Number.isSafeInteger(id) || !Number.isSafeInteger(input?.version) || input.version < 1) {
+        throw problem(400, 'OS ou versão inválida.');
+      }
+      const saved = await db('GET', 'saj_orders', '?id=eq.' + id + '&select=id,status,version');
+      if (!saved.length) throw problem(404, 'OS não encontrada.');
+      if (saved[0].status !== 'open') throw problem(409, 'Uma OS concluída não pode ser alterada.');
+      if (saved[0].version !== input.version) throw problem(409, 'OS alterada por outra pessoa. Atualize.');
+      const normalized = normalize(input, true);
+      const status = input.status === 'completed' ? 'completed' : 'open';
+      const patch = {
+        ...normalized,
+        status,
+        version: input.version + 1,
+        updated_at: new Date().toISOString(),
+        completed_at: status === 'completed' ? new Date().toISOString() : null
+      };
+      const rows = await db(
+        'PATCH', 'saj_orders',
+        '?id=eq.' + id + '&version=eq.' + input.version + '&status=eq.open&select=*',
+        patch
+      );
+      if (!rows.length) throw problem(409, 'OS alterada simultaneamente. Atualize.');
+      return send({ order: rows[0] });
+    }
+
+    if (route === '/api/destinations') {
+      if (request.method === 'GET') {
+        const destinations = await db('GET', 'saj_destinations', '?select=*&order=name.asc');
+        return send({ destinations });
+      }
+      if (request.method === 'POST') {
+        const input = await data(request);
+        const name = text(input?.name, 120);
+        const type = text(input?.type, 10);
+        const cnpj = text(input?.cnpj, 25).replace(/\D/g, '');
+        if (!name || !TYPES.has(type) || (cnpj.length !== 0 && cnpj.length !== 14)) {
+          throw problem(400, 'Nome, tipo ou CNPJ inválidos.');
+        }
+        const rows = await db('POST', 'saj_destinations', '?select=*', { name, type, cnpj });
+        return send({ destination: rows[0] }, 201);
+      }
+      if (request.method === 'DELETE') {
+        const id = Number(url.searchParams.get('id'));
+        if (!Number.isSafeInteger(id) || id < 1) throw problem(400, 'Cadastro inválido.');
+        await db('DELETE', 'saj_destinations', '?id=eq.' + id);
+        return send({ ok: true });
+      }
+    }
+    throw problem(404, 'Rota inexistente.');
+  } catch (err) {
+    const status = Number.isInteger(err?.status) ? err.status : 500;
+    if (status === 500) console.error('Netlify API SAJ', err);
+    return send({ error: status === 500 ? 'Erro inesperado no servidor.' : err.message }, status);
+  }
+}
+
+export const config = { path: '/api/*' };
