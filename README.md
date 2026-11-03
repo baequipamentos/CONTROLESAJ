@@ -68,7 +68,7 @@ O banco Neon deste projeto será separado do ERP: a credencial do projeto CONTRO
 
 ## Importação das OS históricas
 
-Importados diretamente no Neon: **841 OS, 1.331 itens, R$ 445.097,50**. A OS 7 sem itens e valor zero foi preservada sem somar vendas. O identificador antigo é `ANTIGA-000001` etc., sem ocupar a numeração das novas OS `SAJ-000001`. OS antigas são somente leitura. Por determinação do responsável, todas as 841 OS históricas foram atribuídas posteriormente ao vendedor **Antonio** e agora compõem seu total de vendas. Essa atribuição é administrativa, não consta do arquivo original. Mecânico e pagamentos históricos continuam não informados; não entram em valores recebidos nem em produtividade de mecânicos. Atenção à OS 841 (bieleta R$ 28.904,00) e às datas incomuns; mantidas sem suposição.
+Importados diretamente no Neon: **841 OS, 1.331 itens, R$ 445.097,50**. A OS 7 sem itens e valor zero foi preservada sem somar vendas. O identificador antigo é `ANTIGA-000001` etc., sem ocupar a numeração das novas OS `SAJ-000001`. OS antigas são somente leitura. Por determinação do responsável, todas as 841 OS históricas foram atribuídas posteriormente ao vendedor **Antonio** e agora compõem seu total de vendas. Essa atribuição é administrativa, não consta do arquivo original. Mecânico histórico permanece não informado. As formas de pagamento foram vinculadas posteriormente conforme planilha complementar, mas não foram conciliadas; não entram nos valores recebidos nem na produtividade de mecânicos. Atenção à OS 841 (bieleta R$ 28.904,00) e às datas incomuns; mantidas sem suposição.
 
 ## Métodos de pagamento das OS históricas
 
