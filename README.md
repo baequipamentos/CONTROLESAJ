@@ -101,3 +101,15 @@ no fuso America/Bahia, porque não havia data informada no cadastro.
 
 As **841 OS históricas** mantêm a data original em `saj_legacy_orders.sold_at`.
 Não houve alteração das datas históricas nem dos pagamentos.
+
+## Correção do fluxo: vendedor obrigatório e data preservada
+
+Nova OS abre com o vendedor vazio e com a opção "Selecione o vendedor".
+O campo é obrigatório; somente Antonio e Jean são aceitos e o backend recusa
+solicitações com vendedor em branco tanto ao criar quanto ao atualizar.
+
+O PostgreSQL pode devolver a coluna `sale_date` no formato timestamp ISO,
+enquanto o campo HTML `type=date` aceita somente `YYYY-MM-DD`.
+A interface converte as datas recebidas antes de exibi-las e preserva o
+valor informado depois de salvar uma OS aberta, ao reabri-la e ao concluí-la.
+Os testes cobrem os dois problemas relatados.

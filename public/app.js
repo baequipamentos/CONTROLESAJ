@@ -44,6 +44,13 @@ function dateISO(s) {
 function orderISODate(o) {
   return o.sale_date ? String(o.sale_date).slice(0, 10) : dateISO(o.created_at);
 }
+// PostgreSQL DATE can arrive from the API as ISO timestamp. Date inputs only
+// accept the YYYY-MM-DD portion, not YYYY-MM-DDT00:00:00.000Z.
+function normalizeApiOrder(order) {
+  if (order.legacy) return order;
+  const date = String(order.sale_date ?? '').slice(0, 10);
+  return { ...order, sale_date: validSaleDate(date) ? date : '' };
+}
 function validSaleDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(value + 'T00:00:00Z');
@@ -84,7 +91,7 @@ async function api(url, opts = {}) {
 async function reload() {
   try {
     const [o,d] = await Promise.all([api('/api/orders'), api('/api/destinations')]);
-    state.orders = Array.isArray(o.orders) ? o.orders : [];
+    state.orders = Array.isArray(o.orders) ? o.orders.map(normalizeApiOrder) : [];
     state.destinations = Array.isArray(d.destinations) ? d.destinations : [];
     alertMessage('');
   } catch (err) {
@@ -169,7 +176,7 @@ function renderSummary() {
     '</div><p class="subtle spacing-top">Valores de venda e categorias consideram somente OS concluídas. Recebidos mostra apenas lançamentos confirmados. Os valores históricos por forma de pagamento foram declarados na planilha e não comprovam liquidação ou repasse bancário.</p>';
 }
 function newDraft() {
-  return { customer:'', phone:'', plate:'', sale_date:'', seller:'Antonio', mechanic:'', notes:'', status:'open', version:1, items:[{category:'Pneus',description:'',quantity:1,unit_cents:0}], payments:[] };
+  return { customer:'', phone:'', plate:'', sale_date:'', seller:'', mechanic:'', notes:'', status:'open', version:1, items:[{category:'Pneus',description:'',quantity:1,unit_cents:0}], payments:[] };
 }
 function orderOptions(values, value, emptyLabel) {
   const opts = emptyLabel == null ? values : [{ value:'',label:emptyLabel }, ...values.map(n => ({value:n,label:n}))];
@@ -222,8 +229,8 @@ function renderForm() {
     label('Cliente *', input(d.customer,'data-simple="customer" required maxlength="160"' + off)) +
     label('Telefone', input(d.phone,'data-simple="phone" placeholder="(75) 99999-9999"' + off)) +
     label('Placa do veículo', input(d.plate,'data-simple="plate" maxlength="15"' + off)) +
-    label('Data do lançamento * (DD/MM/AAAA)', input(d.legacy ? orderISODate(d) : (d.sale_date || ''), 'data-simple="sale_date" required' + off, 'date')) +
-    label('Vendedor *', d.legacy ? input(d.seller || 'Não informado (histórico)','disabled') : select('seller',SELLERS,d.seller,'data-simple="seller"' + off)) +
+    label('Data do lançamento * (DD/MM/AAAA)', input(orderISODate(d), 'data-simple="sale_date" required' + off, 'date')) +
+    label('Vendedor *', d.legacy ? input(d.seller || 'Não informado (histórico)','disabled') : select('seller',[{value:'',label:'Selecione o vendedor'},...SELLERS.map(name=>({value:name,label:name}))],d.seller,'data-simple="seller" required' + off)) +
     label('Mecânico responsável', select('mechanic', MECHANICS.map(n => ({value:n,label:n || 'Não informado'})), d.mechanic, 'data-simple="mechanic"' + off)) +
     '<div><label>Loja</label>' + input('Santo Antônio de Jesus (SAJ)','disabled') + '</div>' +
     label('Observações', '<textarea data-simple="notes" maxlength="2000"' + off + '>' + h(d.notes) + '</textarea>', 'wide') +
@@ -311,7 +318,8 @@ async function saveOrder(finish) {
       await reload();
       alertMessage('OS ' + osNumber(r.order.id) + ' concluída com sucesso.', 'success');
     } else {
-      state.draft = r.order;
+      const saved = normalizeApiOrder(r.order);
+      state.draft = { ...saved, sale_date: saved.sale_date || payload.sale_date };
       await reload();
       alertMessage('OS ' + osNumber(r.order.id) + ' salva. Você pode continuar editando ou concluir.', 'success');
     }
@@ -348,7 +356,7 @@ document.addEventListener('click', event => {
   if (what === 'apply') render();
   if (what === 'open') {
     const order = state.orders.find(o => String(o.id) === String(action.dataset.id));
-    if (order) { state.draft = JSON.parse(JSON.stringify(order)); alertMessage(''); render(); }
+    if (order) { state.draft = normalizeApiOrder(JSON.parse(JSON.stringify(order))); alertMessage(''); render(); }
   }
   if (what === 'add-item' && state.draft) {
     state.draft.items.push({category:'Pneus',description:'',quantity:1,unit_cents:0}); render();

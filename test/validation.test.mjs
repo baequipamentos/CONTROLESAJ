@@ -17,6 +17,10 @@ test('somar quatro pneus e aceitar seis parcelas', () => {
   assert.equal(result.total_cents, 120000);
   assert.equal(result.payments[0].installments, 6);
 });
+test('vendedor em branco é recusado no backend', () => {
+  assert.throws(() => normalize({ ...base(), seller: '' }), /cliente, vendedor/);
+  assert.throws(() => normalize({ ...base(), seller: ' ' }, true), /cliente, vendedor/);
+});
 test('vendedor não pode ser mecânico', () => {
   assert.throws(() => normalize({ ...base(), seller: 'Marcelo' }));
 });
