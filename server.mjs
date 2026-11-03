@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { storage } from './neon-db.mjs';
+import { historicRow } from './legacy-row.mjs';
 
 const home = fileURLToPath(new URL('.', import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
@@ -81,7 +82,6 @@ async function jsonBody(req) {
   try { return JSON.parse(body); }
   catch { throw problem(400, 'JSON inválido.'); }
 }
-function historicRow(o) { return {id:'legacy:'+o.legacy_number,legacy:true,legacy_number:o.legacy_number,customer:o.customer,phone:'',plate:o.plate||'',seller:o.seller,mechanic:'',notes:o.notes||'',items:o.items||[],payments:[],total_cents:Number(o.total_cents),status:'completed',version:1,created_at:o.sold_at,completed_at:o.sold_at}; }
 function requireWritable(req) {
   const origin = req.headers.origin;
   if (origin) {

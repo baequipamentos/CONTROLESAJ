@@ -69,3 +69,20 @@ O banco Neon deste projeto será separado do ERP: a credencial do projeto CONTRO
 ## Importação das OS históricas
 
 Importados diretamente no Neon: **841 OS, 1.331 itens, R$ 445.097,50**. A OS 7 sem itens e valor zero foi preservada sem somar vendas. O identificador antigo é `ANTIGA-000001` etc., sem ocupar a numeração das novas OS `SAJ-000001`. OS antigas são somente leitura. Por determinação do responsável, todas as 841 OS históricas foram atribuídas posteriormente ao vendedor **Antonio** e agora compõem seu total de vendas. Essa atribuição é administrativa, não consta do arquivo original. Mecânico e pagamentos históricos continuam não informados; não entram em valores recebidos nem em produtividade de mecânicos. Atenção à OS 841 (bieleta R$ 28.904,00) e às datas incomuns; mantidas sem suposição.
+
+## Métodos de pagamento das OS históricas
+
+Os métodos de pagamento das 841 OS foram vinculados por número de OS a partir de um segundo arquivo com
+colunas de número, data, cliente, forma de pagamento e valor. **841 correspondências e nenhuma diferença de
+valor** na comparação com `saj_legacy_orders`.
+
+O banco registra `payment_method` (normalizado), `payment_raw` (texto original do arquivo) e
+`payment_declared_cents` (valor informado na planilha). `Pix` inclui `PIX` e `pix`.
+`CREDITO` (2 OS) é registrado separadamente como `Crédito (não especificado)`; não é presumido
+como cartão de crédito. Os 12 lançamentos `Outro` também mantêm a nomenclatura original.
+
+**Não lançamos nenhum pagamento histórico como recebido na tabela de transações.**
+Os métodos históricos aparecem na OS e em um resumo **separado**, com a indicação **não conciliado**.
+Não representam comprovante de recebimento, crédito bancário ou liquidação de boleto.
+
+O vendedor das OS históricas permanece Antonio por decisão administrativa anterior.

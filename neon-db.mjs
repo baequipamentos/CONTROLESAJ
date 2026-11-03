@@ -18,7 +18,7 @@ function sql() {
 
 // As consultas são estáticas e os valores são enviados como parâmetros separados.
 export const storage = {
- listLegacyOrders() { return sql().query('SELECT legacy_number,customer,plate,sold_at,items,total_cents,notes,seller FROM public.saj_legacy_orders ORDER BY sold_at DESC, legacy_number DESC LIMIT 3000', []); },
+ listLegacyOrders() { return sql().query('SELECT legacy_number,customer,plate,sold_at,items,total_cents,notes,seller,payment_method,payment_raw,payment_declared_cents FROM public.saj_legacy_orders ORDER BY sold_at DESC, legacy_number DESC LIMIT 3000', []); },
   listOrders() {
     return sql().query('SELECT * FROM public.saj_orders ORDER BY id DESC LIMIT 3000', []);
   },

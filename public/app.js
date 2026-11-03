@@ -123,8 +123,8 @@ function renderOrders() {
       '</h3><p>' + (state.orders.length ? 'Altere os filtros para consultar outras ordens.' : 'Crie uma OS, adicione os itens e registre os pagamentos.') +
       '</p><button class="btn primary" type="button" data-action="new">＋ Criar nova OS</button></div>';
   } else {
-    table = '<div class="table-wrap"><table><thead><tr><th>OS</th><th>Data</th><th>Cliente</th><th>Vendedor</th><th>Mecânico</th><th>Total</th><th>Recebido</th><th>Situação</th><th></th></tr></thead><tbody>' +
-      orders.map(o => '<tr><td><b>' + h(osNumber(o.id)) + '</b>' + (o.legacy ? '<div class="tag">Histórica</div>' : '') + '</td><td>' + h(dateBR(o.created_at)) + '</td><td><b>' + h(o.customer) + '</b><div class="muted">' + h(o.plate) + '</div></td><td>' + h(o.seller || 'Não informado') + '</td><td>' + h(o.mechanic || '—') + '</td><td class="amount">' + money(o.total_cents) + '</td><td>' + money(payReceived(o)) + '</td><td>' + statusTag(o) + '</td><td><button type="button" class="link-action" data-action="open" data-id="' + h(o.id) + '">' + (o.status === 'open' ? 'Editar' : 'Visualizar') + '</button></td></tr>').join('') +
+    table = '<div class="table-wrap"><table><thead><tr><th>OS</th><th>Data</th><th>Cliente</th><th>Vendedor</th><th>Mecânico</th><th>Pagamento</th><th>Total</th><th>Recebido</th><th>Situação</th><th></th></tr></thead><tbody>' +
+      orders.map(o => '<tr><td><b>' + h(osNumber(o.id)) + '</b>' + (o.legacy ? '<div class="tag">Histórica</div>' : '') + '</td><td>' + h(dateBR(o.created_at)) + '</td><td><b>' + h(o.customer) + '</b><div class="muted">' + h(o.plate) + '</div></td><td>' + h(o.seller || 'Não informado') + '</td><td>' + h(o.mechanic || '—') + '</td><td>' + (o.legacy ? '<b>' + h(o.payment_method || 'Não informado') + '</b><div class="hint">Informado no histórico</div>' : h((o.payments || []).map(p => p.method).filter(Boolean).join(' + ') || '—')) + '</td><td class="amount">' + money(o.total_cents) + '</td><td>' + money(payReceived(o)) + '</td><td>' + statusTag(o) + '</td><td><button type="button" class="link-action" data-action="open" data-id="' + h(o.id) + '">' + (o.status === 'open' ? 'Editar' : 'Visualizar') + '</button></td></tr>').join('') +
       '</tbody></table></div>';
   }
   $('screen').innerHTML = panelTitle('CONTROLE DIÁRIO', 'Ordens de serviço', 'Loja Santo Antônio de Jesus · todas as vendas em um só lugar.') +
@@ -139,16 +139,19 @@ function renderSummary() {
   const completed = orders.filter(o => o.status === 'completed');
   const category = name => completed.reduce((sum,o) => sum + (o.items || []).filter(i => i.category === name).reduce((s,i) => s + Number(i.unit_cents)*Number(i.quantity),0),0);
   const method = name => orders.reduce((sum,o) => sum + (o.payments || []).filter(p => p.method === name && p.status === 'recebido').reduce((s,p) => s + Number(p.amount_cents),0),0);
+  const historicalMethod = name => orders.filter(o => o.legacy && o.payment_method === name)
+    .reduce((sum,o) => sum + Number(o.payment_declared_cents || 0),0);
   const seller = name => completed.filter(o => o.seller === name).reduce((sum,o) => sum + Number(o.total_cents),0);
   const mechanic = name => completed.filter(o => o.mechanic === name).reduce((sum,o) => sum + (o.items || []).filter(i => i.category === 'Serviços').reduce((s,i) => s + Number(i.unit_cents)*Number(i.quantity),0),0);
   $('screen').innerHTML = panelTitle('ACOMPANHAMENTO', 'Resumo financeiro', 'Somente SAJ · valores de OS concluídas, exceto pagamentos recebidos.') +
     statCards(orders) + filters() +
     '<div class="summary-grid">' +
     summaryGroup('Vendas por categoria', CATEGORIES, category) +
-    summaryGroup('Formas de pagamento (recebidas)', METHODS, method) +
+    summaryGroup('Formas de pagamento (recebidas e confirmadas)', METHODS, method) +
+    summaryGroup('Formas informadas nas OS históricas (não conciliadas)', ['Pix','Crédito','Débito','Dinheiro','Boleto','Outro','Crédito (não especificado)'], historicalMethod) +
     summaryGroup('Vendas por vendedor', SELLERS, seller) +
     summaryGroup('Serviços por mecânico (separado das vendas)', MECHANICS.filter(Boolean), mechanic) +
-    '</div><p class="subtle spacing-top">Valores de venda e categorias consideram somente OS concluídas. Formas de pagamento mostram somente recebimentos; estornos, cancelamentos e pendências não entram em recebidos.</p>';
+    '</div><p class="subtle spacing-top">Valores de venda e categorias consideram somente OS concluídas. Recebidos mostra apenas lançamentos confirmados. Os valores históricos por forma de pagamento foram declarados na planilha e não comprovam liquidação ou repasse bancário.</p>';
 }
 function newDraft() {
   return { customer:'', phone:'', plate:'', seller:'Antonio', mechanic:'', notes:'', status:'open', version:1, items:[{category:'Pneus',description:'',quantity:1,unit_cents:0}], payments:[] };
@@ -210,16 +213,22 @@ function renderForm() {
     label('Observações', '<textarea data-simple="notes" maxlength="2000"' + off + '>' + h(d.notes) + '</textarea>', 'wide') +
     '</div>';
   $('screen').innerHTML = '<div class="row-between"><div><span class="eyebrow">CONTROLE DIÁRIO · SAJ</span><h1>' + h(title) + '</h1><p>' +
-    (d.legacy ? 'Registro histórico importado · vendedor atribuído posteriormente · forma de pagamento não informada.' : readonly ? 'Ordem concluída · somente consulta.' : 'Adicione quantos pneus, peças, serviços e pagamentos forem necessários.') +
+    (d.legacy ? 'Registro histórico importado · vendedor atribuído posteriormente · pagamento informado na planilha, não conciliado.' : readonly ? 'Ordem concluída · somente consulta.' : 'Adicione quantos pneus, peças, serviços e pagamentos forem necessários.') +
     '</p></div><button class="btn" data-action="back" type="button">← Voltar</button></div>' +
     (d.id ? '<div class="subtle spacing-top">Criada em ' + h(dateBR(d.created_at)) + ' · ' + (readonly ? 'Concluída' : 'Em aberto') + ' · Vendedor: ' + h(d.seller || 'Não informado') + '</div>' : '<div class="subtle spacing-top">O número da OS será gerado automaticamente ao salvar.</div>') +
     '<form id="os-form"><section class="card form-panel"><h3>Dados da ordem</h3><div class="spacing-top">' + fields + '</div>' +
     '<div class="section-title"><h3>Itens da OS</h3>' + (readonly ? '' : '<button class="btn soft" type="button" data-action="add-item">＋ Adicionar item</button>') + '</div>' +
     '<div id="item-list">' + itemRows(d,readonly) + '</div>' +
-    '<div class="row-totals" id="os-totals">' + totalHtml(d) + '</div>' +
+    '<div class="row-totals" id="os-totals">' + (d.legacy ? '<div><span>Total da OS</span><b>' + money(d.total_cents) + '</b></div>' : totalHtml(d)) + '</div>' +
     '<div class="section-title"><h3>Pagamentos</h3>' + (readonly ? '' : '<button class="btn soft" type="button" data-action="add-payment">＋ Adicionar pagamento</button>') + '</div>' +
-    '<p>É possível dividir a OS entre cartão, Pix, dinheiro e outros meios. Cada lançamento é independente.</p>' +
-    '<div id="payment-list" class="spacing-top">' + (d.payments.length ? paymentRows(d,readonly) : '<p>Sem pagamentos registrados.</p>') + '</div>' +
+    (d.legacy
+      ? '<div class="alert spacing-top"><b>Forma informada: ' + h(d.payment_method || 'Não informado') + '</b>' +
+        '<div>Valor informado na planilha: ' + money(d.payment_declared_cents || 0) + '</div>' +
+        '<div>Este lançamento histórico não comprova recebimento, liquidação ou repasse bancário.</div>' +
+        (d.payment_raw && d.payment_raw !== d.payment_method ? '<div class="subtle">Descrição original: ' + h(d.payment_raw) + '</div>' : '') +
+        '</div>'
+      : '<p>É possível dividir a OS entre cartão, Pix, dinheiro e outros meios. Cada lançamento é independente.</p>' +
+        '<div id="payment-list" class="spacing-top">' + (d.payments.length ? paymentRows(d,readonly) : '<p>Sem pagamentos registrados.</p>') + '</div>') +
     '<div class="form-actions"><button class="btn" type="button" data-action="back">Voltar</button>' +
     (readonly ? '' : '<button class="btn" type="submit"' + (state.busy?' disabled':'') + '>Salvar OS aberta</button>' +
     (d.id ? '<button class="btn primary" type="button" data-action="finish"' + (state.busy?' disabled':'') + '>Concluir OS</button>' : '')) +

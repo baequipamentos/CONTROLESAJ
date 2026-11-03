@@ -1,10 +1,10 @@
 import { normalize, problem, text } from '../../server.mjs';
 import { storage } from '../../neon-db.mjs';
+import { historicRow } from '../../legacy-row.mjs';
 
 const METHODS = new Set(['GET', 'POST', 'PATCH', 'DELETE']);
 const TYPES = new Set(['pos', 'pix', 'bank', 'other']);
 
-function historicRow(o) { return {id:'legacy:'+o.legacy_number,legacy:true,legacy_number:o.legacy_number,customer:o.customer,phone:'',plate:o.plate||'',seller:o.seller,mechanic:'',notes:o.notes||'',items:o.items||[],payments:[],total_cents:Number(o.total_cents),status:'completed',version:1,created_at:o.sold_at,completed_at:o.sold_at}; }
 function send(body, status = 200) {
   return Response.json(body, {
     status,

@@ -39,9 +39,17 @@ CREATE TABLE IF NOT EXISTS public.saj_legacy_orders (
  original_period text NOT NULL DEFAULT '',
  items jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(items) = 'array'),
  total_cents bigint NOT NULL DEFAULT 0 CHECK (total_cents >= 0),
+ payment_method text NOT NULL DEFAULT '',
+ payment_raw text NOT NULL DEFAULT '',
+ payment_declared_cents bigint CHECK (payment_declared_cents >= 0),
  notes text NOT NULL DEFAULT '',
  imported_at timestamptz NOT NULL DEFAULT now()
 );
 
 -- Migração idempotente para instalações do histórico anteriores à atribuição do vendedor.
 ALTER TABLE public.saj_legacy_orders ADD COLUMN IF NOT EXISTS seller text NOT NULL DEFAULT 'Antonio' CHECK (seller IN ('Antonio','Jean'));
+
+-- Migração idempotente dos campos de pagamento histórico.
+ALTER TABLE public.saj_legacy_orders ADD COLUMN IF NOT EXISTS payment_method text NOT NULL DEFAULT '';
+ALTER TABLE public.saj_legacy_orders ADD COLUMN IF NOT EXISTS payment_raw text NOT NULL DEFAULT '';
+ALTER TABLE public.saj_legacy_orders ADD COLUMN IF NOT EXISTS payment_declared_cents bigint CHECK (payment_declared_cents >= 0);
