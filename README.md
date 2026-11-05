@@ -113,3 +113,20 @@ enquanto o campo HTML `type=date` aceita somente `YYYY-MM-DD`.
 A interface converte as datas recebidas antes de exibi-las e preserva o
 valor informado depois de salvar uma OS aberta, ao reabri-la e ao concluí-la.
 Os testes cobrem os dois problemas relatados.
+
+## Relatório mensal navegável
+
+Em **Resumo financeiro**, os resultados são apresentados por mês, com setas,
+seletores dos cinco meses próximos, campo **Ir para outro mês** e deslizamento
+lateral em telas sensíveis ao toque. O mês inicial é o atual em Salvador.
+
+Filtros: vendedor (todos/Antonio/Jean), categoria de item (pneus, peças,
+serviços), tipo de serviço (alinhamento, balanceamento, conjunto A+B,
+montagem, troca de óleo/filtros, freios, suspensão e outros). Ao escolher
+um serviço, o relatório totaliza somente os itens daquele serviço nas OS
+concluídas; serviços combinados são uma categoria única sem valor duplicado.
+
+A apuração usa a data do lançamento da OS e inclui o histórico importado.
+As formas históricas de pagamento seguem **não conciliadas** e separadas
+dos recebimentos confirmados. Com filtro de item, não é realizado rateio
+fictício de pagamentos da OS inteira.
